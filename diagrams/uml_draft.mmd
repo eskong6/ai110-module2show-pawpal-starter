@@ -1,0 +1,50 @@
+%% Mermaid UML draft for PawPal+
+classDiagram
+    class Owner {
+        +string name
+        +list availability    "time windows"
+        +dict preferences     "max_daily_time, priority_overrides"
+        +is_available(window) bool
+        +update_preferences(prefs)
+    }
+
+    class Pet {
+        +string name
+        +string species
+        +int age
+        +string activity_level
+        +list feeding_constraints
+        +preferred_times() list
+        +needs_today(date) list
+    }
+
+    class Task {
+        +string id
+        +string title
+        +int duration        "minutes"
+        +int priority
+        +datetime earliest
+        +datetime latest
+        +string recurrence
+        +string notes
+        +conflicts_with(other) bool
+        +occurrences_for(date) list
+    }
+
+    class Schedule {
+        +date date
+        +list items         "[{task, start, end, status}]"
+        +dict owner_snapshot
+        +generate(tasks, owner, pet) list
+        +add_task(task)
+        +update_task(task_id, attrs)
+        +remove_task(task_id)
+        +mark_done(task_id)
+    }
+
+    %% Relationships
+    Owner "1" o-- "0..*" Pet
+    Pet "1" o-- "0..*" Task
+    Schedule ..> Task : consumes
+    Schedule ..> Owner : considers
+    Schedule ..> Pet : considers
