@@ -13,6 +13,7 @@ There needs to be an Owner class, Pet class, Task Class, and Schedule class. The
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
 
+One change I made was ensuring Owner had a pets field and Pet had an owner_id to ensure the two were connected.
 ---
 
 ## 2. Scheduling Logic and Tradeoffs
