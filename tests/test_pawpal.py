@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 import pytest
 
 from pawpal_system import Owner, Pet, Task, Scheduler
@@ -117,3 +117,66 @@ def test_pet_add_task_increases_count():
     new_task = Task(id="nt1", title="New", duration=10)
     p.add_task(new_task)
     assert len(p.tasks) == initial + 1
+
+
+def test_scheduler_sort_and_filter_tasks():
+    owner = Owner(name="Sam", availability=[(time(8, 0), time(20, 0))])
+    pet = Pet(name="Mochi", species="cat", age=4)
+    owner.add_pet(pet)
+
+    today = date.today()
+    task1 = Task(
+        id="t1",
+        title="Morning walk",
+        duration=20,
+        priority=3,
+        pet_id="Mochi",
+        earliest=datetime.combine(today, time(10, 0)),
+    )
+    task2 = Task(
+        id="t2",
+        title="Feed breakfast",
+        duration=10,
+        priority=5,
+        pet_id="Mochi",
+        earliest=datetime.combine(today, time(8, 0)),
+    )
+    task3 = Task(
+        id="t3",
+        title="Medication",
+        duration=10,
+        priority=4,
+        pet_id="Mochi",
+        earliest=datetime.combine(today, time(9, 0)),
+    )
+    task3.mark_complete()
+
+    pet.add_task(task1)
+    pet.add_task(task2)
+    pet.add_task(task3)
+
+    scheduler = Scheduler(owner=owner)
+    sorted_ids = [task.id for task in scheduler.sort_by_time(on_date=today)]
+    assert sorted_ids == ["t2", "t3", "t1"]
+
+    filtered = scheduler.filter_tasks(pet_name="Mochi", completed=False, on_date=today)
+    assert [task.id for task in filtered] == ["t1", "t2"]
+
+
+def test_mark_complete_creates_next_occurrence_for_daily_task():
+    today = date.today()
+    task = Task(
+        id="daily1",
+        title="Water",
+        duration=5,
+        pet_id="Mochi",
+        earliest=datetime.combine(today, time(8, 0)),
+        recurrence="daily",
+    )
+
+    next_task = task.mark_complete(on_date=today)
+
+    assert task.status == "done"
+    assert next_task is not None
+    assert next_task.recurrence == "daily"
+    assert next_task.earliest == datetime.combine(today + timedelta(days=1), time(8, 0))

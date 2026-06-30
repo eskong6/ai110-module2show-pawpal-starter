@@ -28,6 +28,8 @@ One change I made was ensuring Owner had a pets field and Pet had an owner_id to
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+One tradeoff is that the scheduler only checks for exact start-time conflicts instead of full overlap windows. This keeps the logic lightweight and easier to understand for a small pet-care planner, while still catching obvious scheduling collisions that would otherwise create confusing plans.
+
 ---
 
 ## 3. AI Collaboration

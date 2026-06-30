@@ -43,9 +43,45 @@ class Task:
         """Return True when the task status is marked as done."""
         return self.status.lower() == "done"
 
-    def mark_complete(self) -> None:
-        """Mark the task as completed by updating its status."""
+    def mark_complete(self, on_date: Optional[date] = None) -> Optional["Task"]:
+        """Mark the task as completed and optionally create the next recurring instance."""
         self.status = "done"
+
+        if self.recurrence not in {"daily", "weekly"}:
+            return None
+
+        if on_date is None:
+            on_date = date.today()
+
+        if self.recurrence == "daily":
+            next_date = on_date + timedelta(days=1)
+        else:
+            next_date = on_date + timedelta(days=7)
+
+        next_earliest = (
+            datetime.combine(next_date, self.earliest.time())
+            if self.earliest is not None
+            else datetime.combine(next_date, time(0, 0))
+        )
+        next_latest = (
+            datetime.combine(next_date, self.latest.time())
+            if self.latest is not None
+            else None
+        )
+
+        return Task(
+            id=f"{self.id}-next",
+            title=self.title,
+            duration=self.duration,
+            priority=self.priority,
+            pet_id=self.pet_id,
+            scheduled_at=None,
+            earliest=next_earliest,
+            latest=next_latest,
+            recurrence=self.recurrence,
+            notes=self.notes,
+            status="pending",
+        )
 
     def occurrences_for(self, on_date: date) -> List[datetime]:
         """Return concrete datetime occurrences of this task for a given date."""
@@ -170,6 +206,69 @@ class Scheduler:
         tasks = self.retrieve_tasks(on_date)
         return sorted(tasks, key=lambda task: (-task.priority, task.duration, task.title))
 
+    def sort_by_time(self, on_date: Optional[date] = None) -> List[Task]:
+        """Return tasks sorted by their start time, then by title for readability.
+
+        If a task has an earliest datetime, that value is used; otherwise the
+        scheduled time is used. Tasks without either time fall back to a late
+        default value so they still sort predictably.
+        """
+        tasks = self.retrieve_tasks(on_date) if on_date is not None else self.owner.all_tasks()
+        return sorted(
+            tasks,
+            key=lambda task: (
+                task.earliest.time() if task.earliest else task.scheduled_at.time() if task.scheduled_at else time(23, 59),
+                task.title,
+            ),
+        )
+
+    def filter_tasks(
+        self,
+        pet_name: Optional[str] = None,
+        completed: Optional[bool] = None,
+        on_date: Optional[date] = None,
+    ) -> List[Task]:
+        """Return tasks filtered by pet name, completion status, and optional date.
+
+        Passing None for a filter leaves that criterion unchanged, which keeps the
+        method simple and easy to reuse in the CLI or UI.
+        """
+        tasks = self.retrieve_tasks(on_date) if on_date is not None else self.owner.all_tasks()
+
+        if pet_name:
+            tasks = [task for task in tasks if task.pet_id == pet_name]
+
+        if completed is not None:
+            tasks = [task for task in tasks if task.is_complete() is completed]
+
+        return tasks
+
+    def detect_conflicts(self, on_date: Optional[date] = None) -> List[str]:
+        """Return lightweight warning messages for tasks that start at the same time.
+
+        This is a simple, readable check for obvious scheduling collisions. It
+        avoids heavier overlap logic while still surfacing conflicts clearly.
+        """
+        tasks = self.retrieve_tasks(on_date) if on_date is not None else self.owner.all_tasks()
+        warnings: List[str] = []
+
+        for index, first in enumerate(tasks):
+            for second in tasks[index + 1 :]:
+                if first.pet_id is None or second.pet_id is None:
+                    continue
+
+                first_start = first.earliest or first.scheduled_at
+                second_start = second.earliest or second.scheduled_at
+                if first_start is None or second_start is None:
+                    continue
+
+                if first_start == second_start:
+                    warnings.append(
+                        f"Conflict: {first.title} ({first.pet_id}) and {second.title} ({second.pet_id}) both start at {first_start.strftime('%H:%M')}."
+                    )
+
+        return warnings
+
     def daily_time_bounds(self, on_date: date) -> Tuple[datetime, datetime]:
         """Return the scheduling window (start,end) for the owner on the date."""
         if self.owner.availability:
@@ -237,12 +336,16 @@ class Scheduler:
         if not removed:
             raise KeyError(f"Task '{task_id}' not found")
 
-    def mark_task_done(self, task_id: str) -> None:
-        """Find a task by id and mark it completed."""
+    def mark_task_done(self, task_id: str, on_date: Optional[date] = None) -> Optional[Task]:
+        """Find a task by id, mark it completed, and create the next recurring instance if needed."""
         for task in self.owner.all_tasks():
             if task.id == task_id:
-                task.mark_complete()
-                return
+                next_task = task.mark_complete(on_date=on_date)
+                if next_task is not None:
+                    pet = next((pet for pet in self.owner.pets if pet.name == task.pet_id), None)
+                    if pet is not None:
+                        pet.add_task(next_task)
+                return next_task
         raise KeyError(f"Task '{task_id}' not found")
 
     def explain_plan(self, on_date: date) -> List[str]:

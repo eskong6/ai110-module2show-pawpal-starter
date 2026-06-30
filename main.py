@@ -20,6 +20,16 @@ def main() -> None:
 
     tasks = [
         Task(
+            id="t3",
+            title="Medication",
+            duration=10,
+            priority=4,
+            pet_id="Panda",
+            earliest=datetime.combine(today, time(12, 0)),
+            latest=datetime.combine(today, time(13, 0)),
+            recurrence="daily",
+        ),
+        Task(
             id="t1",
             title="Morning walk",
             duration=30,
@@ -40,13 +50,13 @@ def main() -> None:
             recurrence="daily",
         ),
         Task(
-            id="t3",
-            title="Medication",
+            id="t4",
+            title="Brush teeth",
             duration=10,
-            priority=4,
-            pet_id="Panda",
-            earliest=datetime.combine(today, time(12, 0)),
-            latest=datetime.combine(today, time(13, 0)),
+            priority=2,
+            pet_id="Mochi",
+            earliest=datetime.combine(today, time(8, 0)),
+            latest=datetime.combine(today, time(8, 30)),
             recurrence="daily",
         ),
     ]
@@ -58,6 +68,26 @@ def main() -> None:
             panda.add_task(task)
 
     scheduler = Scheduler(owner=owner)
+    sorted_tasks = scheduler.sort_by_time(today)
+    pending_mochi_tasks = scheduler.filter_tasks(pet_name="Mochi", completed=False, on_date=today)
+
+    print("Tasks sorted by time")
+    print("====================")
+    for task in sorted_tasks:
+        print(f"- {task.title} at {task.earliest.strftime('%H:%M')}")
+
+    print("\nPending tasks for Mochi")
+    print("========================")
+    for task in pending_mochi_tasks:
+        print(f"- {task.title}")
+
+    warnings = scheduler.detect_conflicts(today)
+    if warnings:
+        print("\nConflict warnings")
+        print("=================")
+        for warning in warnings:
+            print(f"- {warning}")
+
     plan = scheduler.build_plan(today)
 
     print("Today's Schedule")
