@@ -21,7 +21,12 @@ One change I made was ensuring Owner had a pets field and Pet had an owner_id to
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
+
+The scheduler considers: owner availability windows, task priority (high to low), task duration, earliest/latest time bounds, and pet species preferences. It also skips completed tasks and respects daily scheduling windows.
+
 - How did you decide which constraints mattered most?
+
+I prioritized hard constraints first (owner availability, task completion status) because they're non-negotiable. Then I used priority and duration to sort remaining tasks, since higher priority tasks should go first and longer tasks need earlier slots. Pet preferences act as sensible defaults but can be overridden. This keeps the logic simple and practical for a small pet-care planner.
 
 **b. Tradeoffs**
 

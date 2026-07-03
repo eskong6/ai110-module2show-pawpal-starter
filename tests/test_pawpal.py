@@ -180,3 +180,108 @@ def test_mark_complete_creates_next_occurrence_for_daily_task():
     assert next_task is not None
     assert next_task.recurrence == "daily"
     assert next_task.earliest == datetime.combine(today + timedelta(days=1), time(8, 0))
+
+
+def test_sorting_chronological_order():
+    """Verify tasks are returned in chronological order by earliest time."""
+    owner = Owner(name="Test", availability=[(time(7, 0), time(22, 0))])
+    pet = Pet(name="Buddy", species="dog", age=3)
+    owner.add_pet(pet)
+
+    today = date.today()
+    # Create tasks out of order
+    task_morning = Task(
+        id="morning",
+        title="Morning walk",
+        duration=20,
+        priority=2,
+        pet_id="Buddy",
+        earliest=datetime.combine(today, time(7, 0)),
+    )
+    task_afternoon = Task(
+        id="afternoon",
+        title="Afternoon nap",
+        duration=30,
+        priority=2,
+        pet_id="Buddy",
+        earliest=datetime.combine(today, time(14, 0)),
+    )
+    task_evening = Task(
+        id="evening",
+        title="Evening play",
+        duration=15,
+        priority=2,
+        pet_id="Buddy",
+        earliest=datetime.combine(today, time(18, 0)),
+    )
+
+    pet.add_task(task_afternoon)
+    pet.add_task(task_evening)
+    pet.add_task(task_morning)
+
+    scheduler = Scheduler(owner=owner)
+    sorted_tasks = scheduler.sort_by_time(on_date=today)
+
+    # Verify chronological order
+    times = [task.earliest.time() for task in sorted_tasks]
+    assert times == [time(7, 0), time(14, 0), time(18, 0)]
+
+
+def test_conflict_detection_duplicate_times():
+    """Verify scheduler detects and flags tasks with exact start-time conflicts."""
+    owner = Owner(name="Alex", availability=[(time(8, 0), time(20, 0))])
+    pet1 = Pet(name="Spot", species="dog", age=5)
+    pet2 = Pet(name="Whiskers", species="cat", age=3)
+    owner.add_pet(pet1)
+    owner.add_pet(pet2)
+
+    today = date.today()
+    conflict_time = datetime.combine(today, time(9, 0))
+
+    task_dog = Task(
+        id="dog_task",
+        title="Dog walk",
+        duration=20,
+        priority=3,
+        pet_id="Spot",
+        earliest=conflict_time,
+    )
+    task_cat = Task(
+        id="cat_task",
+        title="Cat feed",
+        duration=10,
+        priority=3,
+        pet_id="Whiskers",
+        earliest=conflict_time,
+    )
+
+    pet1.add_task(task_dog)
+    pet2.add_task(task_cat)
+
+    scheduler = Scheduler(owner=owner)
+    conflicts = scheduler.detect_conflicts(on_date=today)
+
+    # Should detect the conflict
+    assert len(conflicts) > 0
+    assert any("Conflict" in msg and "9:00" in msg for msg in conflicts)
+
+
+def test_recurrence_weekly_task_creates_next():
+    """Verify marking a weekly task complete creates next-week instance."""
+    today = date.today()
+    task = Task(
+        id="weekly_grooming",
+        title="Grooming",
+        duration=45,
+        pet_id="Fluffy",
+        earliest=datetime.combine(today, time(10, 0)),
+        recurrence="weekly",
+    )
+
+    next_task = task.mark_complete(on_date=today)
+
+    assert task.status == "done"
+    assert next_task is not None
+    assert next_task.recurrence == "weekly"
+    expected_date = today + timedelta(days=7)
+    assert next_task.earliest == datetime.combine(expected_date, time(10, 0))

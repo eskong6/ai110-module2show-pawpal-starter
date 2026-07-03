@@ -66,19 +66,57 @@ Plan explanation:
 
 ## 🧪 Testing PawPal+
 
+Run the full test suite with:
+
 ```bash
-# Run the full test suite:
-pytest
-
-# Run with coverage:
-pytest --cov
+python -m pytest
 ```
 
-Sample test output:
+### Test Coverage
+
+The test suite includes **11 comprehensive tests** covering:
+
+- **Sorting Correctness:** Verifies tasks are returned in chronological order by earliest time.
+- **Recurrence Logic:** Confirms that marking daily and weekly tasks complete creates new instances for the next day/week.
+- **Conflict Detection:** Verifies that the `Scheduler` flags tasks with exact start-time conflicts.
+- **CRUD Operations:** Tests adding, removing, and filtering tasks by pet, completion status, and date.
+- **Priority & Duration Sorting:** Ensures higher priority tasks are scheduled before lower ones.
+- **Owner Availability:** Validates that tasks respect owner time windows.
+
+### Sample Test Output
 
 ```
-# Paste your pytest output here
+============================= test session starts ==============================
+platform win32 -- Python 3.14.4, pytest-9.0.3, pluggy-1.6.0
+collected 11 items
+
+tests/test_pawpal.py::test_task_duration_validation PASSED               [  9%]
+tests/test_pawpal.py::test_pet_add_and_tasks_for_date PASSED             [ 18%]
+tests/test_pawpal.py::test_owner_all_tasks_and_tasks_for_date PASSED     [ 27%]
+tests/test_pawpal.py::test_scheduler_build_plan PASSED                   [ 36%]
+tests/test_pawpal.py::test_task_mark_complete_changes_status PASSED      [ 45%]
+tests/test_pawpal.py::test_pet_add_task_increases_count PASSED           [ 54%]
+tests/test_pawpal.py::test_scheduler_sort_and_filter_tasks PASSED        [ 63%]
+tests/test_pawpal.py::test_mark_complete_creates_next_occurrence_for_daily_task PASSED [ 72%]
+tests/test_pawpal.py::test_sorting_chronological_order PASSED            [ 81%]
+tests/test_pawpal.py::test_conflict_detection_duplicate_times PASSED     [ 90%]
+tests/test_pawpal.py::test_recurrence_weekly_task_creates_next PASSED    [100%]
+
+============================= 11 passed in 0.53s ===============================
 ```
+
+### Confidence Level
+
+**⭐⭐⭐⭐⭐ (5/5 stars)**
+
+All 11 tests pass consistently. The scheduler correctly handles:
+- Sorting and ordering tasks chronologically
+- Creating recurring task instances for daily and weekly patterns
+- Detecting start-time conflicts between pets
+- Filtering and prioritizing tasks
+- Respecting owner availability constraints
+
+The system is reliable for its intended use case as a small pet-care planner.
 
 ## 📐 Smarter Scheduling
 
